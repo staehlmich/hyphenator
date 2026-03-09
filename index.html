@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Text Hyphenator</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 900px;
+      width: 100%;
+      padding: 40px;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 2rem;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 0.95rem;
+    }
+
+    .input-section, .output-section {
+      margin-bottom: 25px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 150px;
+      padding: 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 1rem;
+      resize: vertical;
+      transition: border-color 0.3s;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 25px;
+    }
+
+    button {
+      flex: 1;
+      padding: 14px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: #f5f5f5;
+      color: #555;
+    }
+
+    .btn-secondary:hover {
+      background: #e8e8e8;
+    }
+
+    .btn-copy {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .btn-copy:hover {
+      background: #45a049;
+    }
+
+    .preview-box {
+      background: #f9f9f9;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 15px;
+      min-height: 100px;
+      line-height: 1.6;
+      width: 350px;
+      margin-top: 15px;
+      hyphens: auto;
+      -webkit-hyphens: auto;
+      word-wrap: break-word;
+    }
+
+    .preview-label {
+      display: block;
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .info-box {
+      background: #e8f4fd;
+      border-left: 4px solid #2196F3;
+      padding: 12px 16px;
+      border-radius: 4px;
+      margin-top: 20px;
+      font-size: 0.9rem;
+      color: #555;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: #323232;
+      color: white;
+      padding: 16px 24px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 25px;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      .button-group {
+        flex-direction: column;
+      }
+
+      .preview-box {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📝 Text Hyphenator</h1>
+    <p class="subtitle">Add soft hyphens to your text for better word breaking</p>
+
+    <div class="input-section">
+      <label for="inputText">Input Text</label>
+      <textarea
+        id="inputText"
+        placeholder="Paste your text here... Try: Donaudampfschiffahrtsgesellschaftskapitän"
+      ></textarea>
+    </div>
+
+    <div class="button-group">
+      <button class="btn-primary" onclick="hyphenateText()">✨ Add Hyphens</button>
+      <button class="btn-secondary" onclick="clearAll()">🗑️ Clear</button>
+    </div>
+
+    <div class="output-section">
+      <label for="outputText">Output Text (with soft hyphens)</label>
+      <textarea
+        id="outputText"
+        placeholder="Hyphenated text will appear here..."
+        readonly
+      ></textarea>
+      <button class="btn-copy" onclick="copyToClipboard()" style="margin-top: 10px;">
+        📋 Copy to Clipboard
+      </button>
+    </div>
+
+    <div>
+      <span class="preview-label">Preview (narrow box to see hyphenation in action):</span>
+      <div class="preview-box" id="previewBox">
+        Preview will appear here...
+      </div>
+    </div>
+
+    <div class="info-box">
+      <strong>ℹ️ How it works:</strong> This tool inserts soft hyphens (<code>&amp;shy;</code> or Unicode U+00AD)
+      into words. These invisible characters tell browsers where they can break words if needed.
+      The hyphens only appear when a line break occurs at that position.
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // German hyphenation patterns (simplified)
+    // A more complete implementation would use a full hyphenation library
+    function insertSoftHyphens(text) {
+      // Split into words and process each
+      return text.split(/\s+/).map(word => {
+        // Skip short words
+        if (word.length <= 4) return word;
+
+        // Simple German hyphenation rules
+        let hyphenated = word;
+
+        // Common German patterns
+        const patterns = [
+          // Compound words
+          { pattern: /([a-zäöü]{3,})([A-ZÄÖÜ][a-zäöü]{3,})/g, replacement: '$1\u00AD$2' },
+
+          // Common prefixes
+          { pattern: /\b(ver|be|ge|er|ent|emp|miss)([a-zäöü]{3,})/gi, replacement: '$1\u00AD$2' },
+
+          // Common suffixes
+          { pattern: /([a-zäöü]{3,})(ung|heit|keit|schaft|tum|chen|lein)\b/gi, replacement: '$1\u00AD$2' },
+
+          // Consonant clusters
+          { pattern: /([aeiouäöü])([bcdfghjklmnpqrstvwxz]{2,})([aeiouäöü])/gi, replacement: '$1$2\u00AD$3' },
+
+          // Between vowels and consonants (simplified)
+          { pattern: /([aeiouäöü]{2})([bcdfghjklmnpqrstvwxz][aeiouäöü])/gi, replacement: '$1\u00AD$2' },
+        ];
+
+        patterns.forEach(({pattern, replacement}) => {
+          hyphenated = hyphenated.replace(pattern, replacement);
+        });
+
+        // Add soft hyphens every 4-6 characters in very long words without other breaks
+        if (hyphenated === word && word.length > 12) {
+          const chars = hyphenated.split('');
+          let result = '';
+          for (let i = 0; i < chars.length; i++) {
+            result += chars[i];
+            if (i > 0 && (i + 1) % 5 === 0 && i < chars.length - 3) {
+              result += '\u00AD';
+            }
+          }
+          hyphenated = result;
+        }
+
+        return hyphenated;
+      }).join(' ');
+    }
+
+    function hyphenateText() {
+      const input = document.getElementById('inputText').value;
+
+      if (!input.trim()) {
+        showToast('⚠️ Please enter some text first');
+        return;
+      }
+
+      const hyphenated = insertSoftHyphens(input);
+      document.getElementById('outputText').value = hyphenated;
+      document.getElementById('previewBox').innerHTML = hyphenated;
+
+      showToast('✅ Text hyphenated successfully!');
+    }
+
+    function clearAll() {
+      document.getElementById('inputText').value = '';
+      document.getElementById('outputText').value = '';
+      document.getElementById('previewBox').innerHTML = 'Preview will appear here...';
+      showToast('🗑️ All cleared');
+    }
+
+    function copyToClipboard() {
+      const output = document.getElementById('outputText');
+
+      if (!output.value) {
+        showToast('⚠️ Nothing to copy');
+        return;
+      }
+
+      output.select();
+      document.execCommand('copy');
+
+      showToast('📋 Copied to clipboard!');
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    // Example text on load
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('inputText').value =
+        'Donaudampfschiffahrtsgesellschaftskapitän ist ein sehr langes Wort. Arbeitsmarktstrukturreform ist auch interessant.';
+    });
+  </script>
+</body>
+</html>
