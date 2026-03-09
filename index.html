@@ -188,153 +188,137 @@
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>📝 Text Hyphenator</h1>
-    <p class="subtitle">Add soft hyphens to your text for better word breaking</p>
+<div class="container">
+  <h1>📝 Text Hyphenator</h1>
+  <p class="subtitle">Add soft hyphens to your text for better word breaking (using proper German hyphenation)</p>
 
-    <div class="input-section">
-      <label for="inputText">Input Text</label>
-      <textarea
-        id="inputText"
-        placeholder="Paste your text here... Try: Donaudampfschiffahrtsgesellschaftskapitän"
-      ></textarea>
-    </div>
+  <div class="input-section">
+    <label for="inputText">Input Text</label>
+    <textarea
+            id="inputText"
+            placeholder="Paste your text here... Try: Donaudampfschiffahrtsgesellschaftskapitän"
+    ></textarea>
+  </div>
 
-    <div class="button-group">
-      <button class="btn-primary" onclick="hyphenateText()">✨ Add Hyphens</button>
-      <button class="btn-secondary" onclick="clearAll()">🗑️ Clear</button>
-    </div>
+  <div class="button-group">
+    <button class="btn-primary" onclick="hyphenateText()">✨ Add Hyphens</button>
+    <button class="btn-secondary" onclick="clearAll()">🗑️ Clear</button>
+  </div>
 
-    <div class="output-section">
-      <label for="outputText">Output Text (with soft hyphens)</label>
-      <textarea
-        id="outputText"
-        placeholder="Hyphenated text will appear here..."
-        readonly
-      ></textarea>
-      <button class="btn-copy" onclick="copyToClipboard()" style="margin-top: 10px;">
-        📋 Copy to Clipboard
-      </button>
-    </div>
+  <div class="output-section">
+    <label for="outputText">Output Text (with soft hyphens)</label>
+    <textarea
+            id="outputText"
+            placeholder="Hyphenated text will appear here..."
+            readonly
+    ></textarea>
+    <button class="btn-copy" onclick="copyToClipboard()" style="margin-top: 10px;">
+      📋 Copy to Clipboard
+    </button>
+  </div>
 
-    <div>
-      <span class="preview-label">Preview (narrow box to see hyphenation in action):</span>
-      <div class="preview-box" id="previewBox">
-        Preview will appear here...
-      </div>
-    </div>
-
-    <div class="info-box">
-      <strong>ℹ️ How it works:</strong> This tool inserts soft hyphens (<code>&amp;shy;</code> or Unicode U+00AD)
-      into words. These invisible characters tell browsers where they can break words if needed.
-      The hyphens only appear when a line break occurs at that position.
+  <div>
+    <span class="preview-label">Preview (narrow box to see hyphenation in action):</span>
+    <div class="preview-box" id="previewBox">
+      Preview will appear here...
     </div>
   </div>
 
-  <div id="toast" class="toast"></div>
+  <div class="info-box">
+    <strong>ℹ️ How it works:</strong> This tool uses proper German hyphenation patterns (TeX/LaTeX-based)
+    to insert soft hyphens (<code>&amp;shy;</code> or Unicode U+00AD) into words.
+    These invisible characters tell browsers where they can break words if needed.
+    The hyphens only appear when a line break occurs at that position.
+  </div>
+</div>
 
-  <script>
-    // German hyphenation patterns (simplified)
-    // A more complete implementation would use a full hyphenation library
-    function insertSoftHyphens(text) {
-      // Split into words and process each
-      return text.split(/\s+/).map(word => {
-        // Skip short words
-        if (word.length <= 4) return word;
+<div id="toast" class="toast"></div>
 
-        // Simple German hyphenation rules
-        let hyphenated = word;
+<!-- Load Hypher library and German patterns -->
+<script src="https://cdn.jsdelivr.net/npm/hypher@0.2.5/dist/hypher.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hyphenation.de@0.2.2/index.js"></script>
 
-        // Common German patterns
-        const patterns = [
-          // Compound words
-          { pattern: /([a-zäöü]{3,})([A-ZÄÖÜ][a-zäöü]{3,})/g, replacement: '$1\u00AD$2' },
+<script>
+  // Initialize German hyphenator
+  let hyphenator;
 
-          // Common prefixes
-          { pattern: /\b(ver|be|ge|er|ent|emp|miss)([a-zäöü]{3,})/gi, replacement: '$1\u00AD$2' },
-
-          // Common suffixes
-          { pattern: /([a-zäöü]{3,})(ung|heit|keit|schaft|tum|chen|lein)\b/gi, replacement: '$1\u00AD$2' },
-
-          // Consonant clusters
-          { pattern: /([aeiouäöü])([bcdfghjklmnpqrstvwxz]{2,})([aeiouäöü])/gi, replacement: '$1$2\u00AD$3' },
-
-          // Between vowels and consonants (simplified)
-          { pattern: /([aeiouäöü]{2})([bcdfghjklmnpqrstvwxz][aeiouäöü])/gi, replacement: '$1\u00AD$2' },
-        ];
-
-        patterns.forEach(({pattern, replacement}) => {
-          hyphenated = hyphenated.replace(pattern, replacement);
-        });
-
-        // Add soft hyphens every 4-6 characters in very long words without other breaks
-        if (hyphenated === word && word.length > 12) {
-          const chars = hyphenated.split('');
-          let result = '';
-          for (let i = 0; i < chars.length; i++) {
-            result += chars[i];
-            if (i > 0 && (i + 1) % 5 === 0 && i < chars.length - 3) {
-              result += '\u00AD';
-            }
-          }
-          hyphenated = result;
-        }
-
-        return hyphenated;
-      }).join(' ');
-    }
-
-    function hyphenateText() {
-      const input = document.getElementById('inputText').value;
-
-      if (!input.trim()) {
-        showToast('⚠️ Please enter some text first');
-        return;
-      }
-
-      const hyphenated = insertSoftHyphens(input);
-      document.getElementById('outputText').value = hyphenated;
-      document.getElementById('previewBox').innerHTML = hyphenated;
-
-      showToast('✅ Text hyphenated successfully!');
-    }
-
-    function clearAll() {
-      document.getElementById('inputText').value = '';
-      document.getElementById('outputText').value = '';
-      document.getElementById('previewBox').innerHTML = 'Preview will appear here...';
-      showToast('🗑️ All cleared');
-    }
-
-    function copyToClipboard() {
-      const output = document.getElementById('outputText');
-
-      if (!output.value) {
-        showToast('⚠️ Nothing to copy');
-        return;
-      }
-
-      output.select();
-      document.execCommand('copy');
-
-      showToast('📋 Copied to clipboard!');
-    }
-
-    function showToast(message) {
-      const toast = document.getElementById('toast');
-      toast.textContent = message;
-      toast.classList.add('show');
-
-      setTimeout(() => {
-        toast.classList.remove('show');
-      }, 3000);
+  // Wait for libraries to load
+  window.addEventListener('DOMContentLoaded', () => {
+    // Initialize with German patterns
+    if (typeof Hypher !== 'undefined' && typeof Hyphenation !== 'undefined') {
+      hyphenator = new Hypher(Hyphenation.de);
+      showToast('✅ German hyphenation loaded');
+    } else {
+      console.error('Hyphenation libraries not loaded');
+      showToast('⚠️ Error loading hyphenation library');
     }
 
     // Example text on load
-    window.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('inputText').value =
-        'Donaudampfschiffahrtsgesellschaftskapitän ist ein sehr langes Wort. Arbeitsmarktstrukturreform ist auch interessant.';
-    });
-  </script>
+    document.getElementById('inputText').value =
+      'Donaudampfschiffahrtsgesellschaftskapitän ist ein sehr langes Wort. Arbeitsmarktstrukturreform und Bundesausbildungsförderungsgesetz sind auch interessant.';
+  });
+
+
+    function insertSoftHyphens(text) {
+      if (!hyphenator) {
+        showToast('⚠️ Hyphenation library not loaded yet');
+        return text;
+      }
+
+      // Process text word by word, preserving whitespace and punctuation
+      // Updated regex to include German characters (ä, ö, ü, ß)
+      return text.replace(/[a-zA-ZäöüÄÖÜß]+/g, (word) => {
+        // Hyphenate the word and join with soft hyphens
+        const hyphenated = hyphenator.hyphenate(word);
+        return hyphenated.join('\u00AD');
+      });
+    }
+
+  function hyphenateText() {
+    const input = document.getElementById('inputText').value;
+
+    if (!input.trim()) {
+      showToast('⚠️ Please enter some text first');
+      return;
+    }
+
+    const hyphenated = insertSoftHyphens(input);
+    document.getElementById('outputText').value = hyphenated;
+    document.getElementById('previewBox').innerHTML = hyphenated;
+
+    showToast('✅ Text hyphenated successfully!');
+  }
+
+  function clearAll() {
+    document.getElementById('inputText').value = '';
+    document.getElementById('outputText').value = '';
+    document.getElementById('previewBox').innerHTML = 'Preview will appear here...';
+    showToast('🗑️ All cleared');
+  }
+
+  function copyToClipboard() {
+    const output = document.getElementById('outputText');
+
+    if (!output.value) {
+      showToast('⚠️ Nothing to copy');
+      return;
+    }
+
+    output.select();
+    document.execCommand('copy');
+
+    showToast('📋 Copied to clipboard!');
+  }
+
+  function showToast(message) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.classList.add('show');
+
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 3000);
+  }
+</script>
 </body>
 </html>
