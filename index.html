@@ -58,39 +58,10 @@
       font-size: 0.95rem;
     }
 
-    .mode-card,
     .input-section,
     .output-section,
     .preview-section {
       margin-bottom: 24px;
-    }
-
-    .mode-card {
-      background: var(--bg-soft);
-      border: 2px solid var(--border);
-      border-radius: 10px;
-      padding: 16px;
-    }
-
-    .mode-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 16px;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .mode-toggle {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-weight: 600;
-      color: #444;
-    }
-
-    .mode-hint {
-      font-size: 0.9rem;
-      color: var(--muted);
     }
 
     label {
@@ -140,6 +111,7 @@
 
     .html-output {
       min-height: 170px;
+      max-width: 720px;
       background: var(--bg-soft);
       overflow: auto;
     }
@@ -223,10 +195,7 @@
     .output-actions button {
       flex: 1;
       min-width: 220px;
-    }
-
-    .hidden {
-      display: none !important;
+      max-width: 360px;
     }
 
     .info-box {
@@ -279,12 +248,10 @@
         flex-direction: column;
       }
 
-      .mode-row {
-        align-items: flex-start;
-      }
-
-      .preview-box {
+      .preview-box,
+      .html-output {
         width: 100%;
+        max-width: 100%;
       }
     }
   </style>
@@ -309,30 +276,10 @@
 <div class="container">
   <h1>📝 Text Hyphenator</h1>
   <p class="subtitle">
-    Add soft hyphens to German text. Plain text and rich text paste are supported, including pasted links from Google Docs.
+    Paste formatted text from Google Docs, preserve links, and add soft hyphens to visible text.
   </p>
 
-  <div class="mode-card">
-    <div class="mode-row">
-      <label class="mode-toggle" for="richTextMode">
-        <input type="checkbox" id="richTextMode">
-        Rich text mode (paste from Google Docs / preserve links & formatting)
-      </label>
-      <span class="mode-hint">
-        In rich text mode, visible link text is hyphenated, but the actual link target stays unchanged.
-      </span>
-    </div>
-  </div>
-
-  <div class="input-section" id="plainInputSection">
-    <label for="inputText">Input Text</label>
-    <textarea
-      id="inputText"
-      placeholder="Paste your text here... Try: Donaudampfschiffahrtsgesellschaftskapitän"
-    ></textarea>
-  </div>
-
-  <div class="input-section hidden" id="richInputSection">
+  <div class="input-section" id="richInputSection">
     <label for="inputRich">Rich Text Input</label>
     <div
       id="inputRich"
@@ -349,23 +296,13 @@
   </div>
 
   <div class="output-section">
-    <label for="outputText">Output Text / HTML</label>
-    <textarea
-      id="outputText"
-      placeholder="Hyphenated output will appear here..."
-      readonly
-    ></textarea>
-
-    <div class="output-actions">
-      <button class="btn-copy" type="button" onclick="copyPlainOutput()">📋 Copy Output Text / HTML</button>
-      <button class="btn-copy" type="button" onclick="copyRichOutput()">🖇️ Copy Rich Output</button>
-    </div>
-  </div>
-
-  <div class="output-section">
     <label for="outputRich">Rendered Output</label>
     <div id="outputRich" class="html-output">
       Hyphenated rich output will appear here...
+    </div>
+
+    <div class="output-actions">
+      <button class="btn-copy" type="button" onclick="copyRichOutput()">🖇️ Copy Rich Output</button>
     </div>
   </div>
 
@@ -378,8 +315,7 @@
 
   <div class="info-box">
     <strong>ℹ️ Notes:</strong>
-    Plain text mode outputs text with soft hyphens (<code>&amp;shy;</code> / Unicode <code>U+00AD</code>).
-    Rich text mode preserves HTML structure and links. Only the visible text is hyphenated; link URLs are left untouched.
+    The visible text is hyphenated, but link URLs stay unchanged.
   </div>
 </div>
 
@@ -389,8 +325,8 @@
   let hyphenateGerman = null;
 
   window.addEventListener("DOMContentLoaded", async () => {
-    setupModeToggle();
     setupPasteHandling();
+    setupRichEditorLinks();
     setInitialExample();
 
     try {
@@ -401,21 +337,6 @@
       showToast("⚠️ Error loading hyphenation library");
     }
   });
-
-  function setupModeToggle() {
-    const checkbox = document.getElementById("richTextMode");
-    checkbox.addEventListener("change", toggleInputMode);
-    toggleInputMode();
-  }
-
-  function toggleInputMode() {
-    const richMode = document.getElementById("richTextMode").checked;
-    const plainSection = document.getElementById("plainInputSection");
-    const richSection = document.getElementById("richInputSection");
-
-    plainSection.classList.toggle("hidden", richMode);
-    richSection.classList.toggle("hidden", !richMode);
-  }
 
   function setupPasteHandling() {
     const richInput = document.getElementById("inputRich");
@@ -443,11 +364,25 @@
     });
   }
 
-  function setInitialExample() {
-    document.getElementById("inputText").value =
-      "Donaudampfschiffahrtsgesellschaftskapitän ist ein sehr langes Wort. " +
-      "Arbeitsmarktstrukturreform und Bundesausbildungsförderungsgesetz sind auch interessant.";
+  function setupRichEditorLinks() {
+    const richInput = document.getElementById("inputRich");
 
+    richInput.addEventListener("click", (event) => {
+      const link = event.target.closest("a");
+      if (!link) {
+        return;
+      }
+
+      event.preventDefault();
+      const href = link.getAttribute("href");
+
+      if (href && isSafeHref(href)) {
+        window.open(href, "_blank", "noopener,noreferrer");
+      }
+    });
+  }
+
+  function setInitialExample() {
     document.getElementById("inputRich").innerHTML =
       "<p>Dies ist ein Beispiel mit einem " +
       "<a href=\"https://www.beispiel.de/sehr/langer/pfad?thema=Arbeitsmarktstrukturreform\" target=\"_blank\" rel=\"noopener noreferrer\">" +
@@ -522,40 +457,10 @@
       return;
     }
 
-    if (tagName === "a") {
-      // Important: preserve href exactly as-is.
-      // Only the visible text nodes inside the link are hyphenated.
-    }
-
     Array.from(node.childNodes).forEach((child) => hyphenateTextNode(child));
   }
 
   function hyphenateText() {
-    if (document.getElementById("richTextMode").checked) {
-      hyphenateRichTextMode();
-    } else {
-      hyphenatePlainTextMode();
-    }
-  }
-
-  function hyphenatePlainTextMode() {
-    const input = document.getElementById("inputText").value;
-
-    if (!input.trim()) {
-      showToast("⚠️ Please enter some text first");
-      return;
-    }
-
-    const hyphenated = insertSoftHyphens(input);
-
-    document.getElementById("outputText").value = hyphenated;
-    document.getElementById("outputRich").textContent = hyphenated;
-    document.getElementById("previewBox").textContent = hyphenated;
-
-    showToast("✅ Plain text hyphenated successfully!");
-  }
-
-  function hyphenateRichTextMode() {
     const inputRich = document.getElementById("inputRich");
     const inputHtml = inputRich.innerHTML;
     const inputText = inputRich.textContent || "";
@@ -567,7 +472,6 @@
 
     const hyphenatedHtml = hyphenateRichHtml(inputHtml);
 
-    document.getElementById("outputText").value = hyphenatedHtml;
     document.getElementById("outputRich").innerHTML = hyphenatedHtml;
     document.getElementById("previewBox").innerHTML = hyphenatedHtml;
 
@@ -575,29 +479,10 @@
   }
 
   function clearAll() {
-    document.getElementById("inputText").value = "";
     document.getElementById("inputRich").innerHTML = "";
-    document.getElementById("outputText").value = "";
     document.getElementById("outputRich").innerHTML = "Hyphenated rich output will appear here...";
     document.getElementById("previewBox").innerHTML = "Preview will appear here...";
     showToast("🗑️ All cleared");
-  }
-
-  async function copyPlainOutput() {
-    const output = document.getElementById("outputText").value;
-
-    if (!output) {
-      showToast("⚠️ Nothing to copy");
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(output);
-      showToast("📋 Output copied");
-    } catch (error) {
-      fallbackCopyText(output);
-      showToast("📋 Output copied");
-    }
   }
 
   async function copyRichOutput() {
@@ -628,18 +513,6 @@
       fallbackCopyHtml(outputRich);
       showToast("🖇️ Rich output copied");
     }
-  }
-
-  function fallbackCopyText(text) {
-    const temp = document.createElement("textarea");
-    temp.value = text;
-    temp.setAttribute("readonly", "");
-    temp.style.position = "fixed";
-    temp.style.left = "-9999px";
-    document.body.appendChild(temp);
-    temp.select();
-    document.execCommand("copy");
-    document.body.removeChild(temp);
   }
 
   function fallbackCopyHtml(element) {
