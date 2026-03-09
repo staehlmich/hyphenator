@@ -235,8 +235,19 @@
 <div id="toast" class="toast"></div>
 
 <!-- Load Hypher library and German patterns -->
-<script src="https://cdn.jsdelivr.net/npm/hypher@0.2.5/dist/hypher.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/hyphenation.de@0.2.2/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hyphenopoly@5.3.0/min/Hyphenopoly_Loader.js"></script>
+<script>
+  var Hyphenopoly = {
+    require: {
+      "de": "FORCEHYPHENOPOLY"
+    },
+    setup: {
+      selectors: {
+        ".preview-box": {}
+      }
+    }
+  };
+</script>
 
 <script>
   // Initialize German hyphenator
