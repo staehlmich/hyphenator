@@ -114,6 +114,9 @@
       max-width: 720px;
       background: var(--bg-soft);
       overflow: auto;
+      hyphens: auto;
+      -webkit-hyphens: auto;
+      overflow-wrap: break-word;
     }
 
     .preview-box {
@@ -256,21 +259,29 @@
     }
   </style>
 
+  <!-- Hypher library for German hyphenation -->
+  <script src="https://cdn.jsdelivr.net/npm/hypher@0.2.5/lib/hypher.js"></script>
   <script>
-    window.Hyphenopoly = {
-      require: {
-        de: "FORCEHYPHENOPOLY"
-      },
-      setup: {
-        selectors: {
-          ".preview-box": {},
-          ".html-output": {},
-          ".rich-editor": {}
-        }
-      }
-    };
+    // Create a shim to capture the German hyphenation patterns from a CommonJS module script
+    (function() {
+      const originalModule = window.module;
+      const originalExports = window.exports;
+      window.module = { exports: {} };
+      window.exports = window.module.exports;
+      
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/hyphenation.de@0.2.1/lib/de.js';
+      script.async = false; // Load synchronously relative to other scripts
+      script.onload = function() {
+        window.HyphenationDe = window.module.exports;
+        // Restore originals
+        window.module = originalModule;
+        window.exports = originalExports;
+        console.log("✅ German patterns loaded via shim");
+      };
+      document.head.appendChild(script);
+    })();
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/hyphenopoly@5.3.0/min/Hyphenopoly_Loader.js"></script>
 </head>
 <body>
 <div class="container">
@@ -293,6 +304,7 @@
   <div class="button-group">
     <button class="btn-primary" type="button" onclick="hyphenateText()">✨ Add Hyphens</button>
     <button class="btn-secondary" type="button" onclick="clearAll()">🗑️ Clear</button>
+    <button class="btn-secondary" type="button" onclick="testHyphenation()">🧪 Test Hyphenation</button>
   </div>
 
   <div class="output-section">
@@ -322,19 +334,35 @@
 <div id="toast" class="toast"></div>
 
 <script>
-  let hyphenateGerman = null;
+  let hyphenator = null;
 
   window.addEventListener("DOMContentLoaded", async () => {
     setupPasteHandling();
     setupRichEditorLinks();
     setInitialExample();
 
+    showToast("⏳ Loading hyphenation library...");
+
     try {
-      hyphenateGerman = await waitForHyphenator("de");
-      showToast("✅ German hyphenation loaded");
+      // Wait for patterns to load via the shim
+      let retryCount = 0;
+      while (!window.HyphenationDe && retryCount < 50) {
+        await delay(100);
+        retryCount++;
+      }
+
+      // Initialize Hypher with German patterns
+      if (typeof Hypher !== 'undefined' && window.HyphenationDe) {
+        hyphenator = new Hypher(window.HyphenationDe);
+        console.log("✅ Hypher library loaded successfully");
+        showToast("✅ German hyphenation loaded");
+      } else {
+        throw new Error("Hypher or German patterns not loaded correctly. Available: " +
+          Object.keys(window).filter(k => k.toLowerCase().includes('hyp')).join(', '));
+      }
     } catch (error) {
       console.error("Failed to load hyphenation engine:", error);
-      showToast("⚠️ Error loading hyphenation library");
+      showToast("⚠️ Error loading hyphenation library - check console");
     }
   });
 
@@ -390,18 +418,31 @@
       "</a> und normalem Fließtext.</p>";
   }
 
-  async function waitForHyphenator(language) {
-    const maxWaitMs = 10000;
+    async function waitForHyphenator(language) {
+    const maxWaitMs = 15000; // Increased timeout to 15 seconds
     const start = Date.now();
 
     while (Date.now() - start < maxWaitMs) {
+      // Check if Hyphenopoly is loaded
       if (window.Hyphenopoly && window.Hyphenopoly.hyphenators && window.Hyphenopoly.hyphenators[language]) {
+        console.log(`Hyphenator for ${language} found after ${Date.now() - start}ms`);
         return await window.Hyphenopoly.hyphenators[language];
       }
+
+      // Log progress every 2 seconds
+      if ((Date.now() - start) % 2000 < 100) {
+        console.log(`Still waiting for hyphenator... (${Math.floor((Date.now() - start) / 1000)}s)`);
+        console.log("Current state:", {
+          hasHyphenopoly: !!window.Hyphenopoly,
+          hasHyphenators: !!window.Hyphenopoly?.hyphenators,
+          availableLanguages: window.Hyphenopoly?.hyphenators ? Object.keys(window.Hyphenopoly.hyphenators) : []
+        });
+      }
+
       await delay(100);
     }
 
-    throw new Error("Hyphenator not available");
+    throw new Error(`Hyphenator for language '${language}' not available after ${maxWaitMs}ms`);
   }
 
   function delay(ms) {
@@ -409,7 +450,7 @@
   }
 
   function insertSoftHyphens(text) {
-    if (!hyphenateGerman) {
+    if (!hyphenator) {
       showToast("⚠️ Hyphenation library not loaded yet");
       return text;
     }
@@ -418,12 +459,21 @@
   }
 
   function hyphenateWord(word) {
-    if (!hyphenateGerman) {
+    if (!hyphenator) {
+      console.warn("Hyphenation not available for word:", word);
       return word;
     }
 
     try {
-      return hyphenateGerman(word);
+      // Hypher returns an array of syllables, join with soft hyphens
+      const syllables = hyphenator.hyphenate(word);
+      const hyphenated = syllables.join('\u00AD');
+
+      // Debug: log first few words to verify hyphenation is working
+      if (Math.random() < 0.1) { // Log ~10% of words
+        console.log(`Hyphenated: "${word}" → "${hyphenated}" (${syllables.length} syllables)`);
+      }
+      return hyphenated;
     } catch (error) {
       console.warn("Hyphenation failed for word:", word, error);
       return word;
@@ -699,6 +749,38 @@
     showToast._timeoutId = setTimeout(() => {
       toast.classList.remove("show");
     }, 3000);
+  }
+
+    function testHyphenation() {
+    const testWord = "Arbeitsmarktstrukturreform";
+
+    if (!hyphenator) {
+      showToast("⚠️ Hyphenation library not loaded yet");
+      console.error("Hyphenator not available");
+      return;
+    }
+
+    try {
+      const syllables = hyphenator.hyphenate(testWord);
+      const result = syllables.join('\u00AD');
+
+      console.log(`Test word: "${testWord}"`);
+      console.log(`Syllables: [${syllables.join(', ')}]`);
+      console.log(`Hyphenated: "${result}"`);
+      console.log(`Contains soft hyphens: ${result.includes('\u00AD')}`);
+      console.log(`Soft hyphen count: ${(result.match(/\u00AD/g) || []).length}`);
+
+      // Show in toast with visible representation
+      const visible = result.replace(/\u00AD/g, '•');
+      showToast(`Test: ${testWord} → ${visible} (• = soft hyphen)`);
+
+      if (!result.includes('\u00AD')) {
+        console.error("⚠️ WARNING: No soft hyphens were inserted!");
+      }
+    } catch (error) {
+      console.error("Hyphenation test failed:", error);
+      showToast("❌ Hyphenation test failed");
+    }
   }
 </script>
 </body>
