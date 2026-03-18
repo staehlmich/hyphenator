@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Hyphenation Library Loader Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .pass { color: green; }
+        .fail { color: red; font-weight: bold; }
+        #log { white-space: pre-wrap; background: #f0f0f0; padding: 10px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Hyphenation Library Loader Test</h1>
+    <div id="results">Running tests...</div>
+    <h3>Log</h3>
+    <div id="log"></div>
+
+    <!-- Required Libraries -->
+    <script src="vendor/hypher.js"></script>
+    <script src="hyphenation_loader.js"></script>
+
+    <script>
+        const logEl = document.getElementById('log');
+        const resultsEl = document.getElementById('results');
+        function log(msg) {
+            logEl.textContent += msg + '\n';
+            console.log(msg);
+        }
+
+        async function runTests() {
+            let passedCount = 0;
+            let totalCount = 0;
+
+            function assert(condition, message) {
+                totalCount++;
+                if (condition) {
+                    passedCount++;
+                    log('✅ PASS: ' + message);
+                } else {
+                    log('❌ FAIL: ' + message);
+                }
+            }
+
+            log('Starting tests...');
+
+            // 1. Check if Hypher is loaded
+            assert(typeof Hypher !== 'undefined', 'Hypher engine should be loaded');
+
+            // 2. Wait for patterns to be loaded (using the event)
+            log('Waiting for hyphenation patterns...');
+            const patternsLoaded = new Promise((resolve) => {
+                if (window.HyphenationDe) {
+                    resolve(true);
+                } else {
+                    window.addEventListener('hyphenation-patterns-loaded', () => resolve(true), { once: true });
+                    window.addEventListener('hyphenation-patterns-error', () => resolve(false), { once: true });
+                }
+            });
+
+            const success = await patternsLoaded;
+            assert(success === true, 'Hyphenation patterns should be loaded via hyphenation_loader.js');
+            assert(typeof window.HyphenationDe !== 'undefined', 'window.HyphenationDe should be defined');
+
+            // 3. Test actual hyphenation logic
+            if (typeof Hypher !== 'undefined' && window.HyphenationDe) {
+                try {
+                    const hyphenator = new Hypher(window.HyphenationDe);
+                    const word = 'Arbeitsmarktstrukturreform';
+                    const syllables = hyphenator.hyphenate(word);
+                    const result = syllables.join('\u00AD');
+                    const expected = 'Arbeits\u00ADmarkt\u00ADstruk\u00ADtur\u00ADre\u00ADform';
+                    
+                    assert(result === expected, `Hyphenation of "${word}" should match expected syllables`);
+                    log(`Result: ${result.replace(/\u00AD/g, '•')}`);
+                } catch (e) {
+                    assert(false, 'Exception during hyphenation test: ' + e.message);
+                }
+            } else {
+                assert(false, 'Skipping hyphenation logic test because libraries are missing');
+            }
+
+            // Summary
+            const summaryClass = (passedCount === totalCount) ? 'pass' : 'fail';
+            resultsEl.innerHTML = `<div class="${summaryClass}">Tests completed: ${passedCount} / ${totalCount} passed</div>`;
+            
+            if (passedCount === totalCount) {
+                resultsEl.innerHTML += '<div class="pass">All systems go! 🚀</div>';
+            } else {
+                resultsEl.innerHTML += '<div class="fail">Some tests failed. Check the log below.</div>';
+            }
+        }
+
+        window.onload = runTests;
+    </script>
+</body>
+</html>

@@ -10,12 +10,16 @@ window.addEventListener("DOMContentLoaded", async () => {
   showToast("⏳ Loading hyphenation library...");
 
   try {
+    console.log("Waiting for hyphenation patterns...");
     await waitForPatterns(7000);
+    console.log("waitForPatterns resolved, window.HyphenationDe is:", !!window.HyphenationDe);
 
     if (typeof Hypher !== "undefined" && window.HyphenationDe) {
       hyphenator = new Hypher(window.HyphenationDe);
+      console.log("Hyphenator initialized successfully");
       showToast("✅ German hyphenation loaded");
     } else {
+      console.error("Hypher or German patterns unavailable. Hypher:", typeof Hypher, "Patterns:", !!window.HyphenationDe);
       throw new Error("Hypher or German patterns unavailable");
     }
   } catch (error) {

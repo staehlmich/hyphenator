@@ -28,11 +28,21 @@ Select text on any webpage, **right-click**, and choose **✨ Hyphenate Selectio
 - **CSP**: It is Manifest V3 compliant and does not use external scripts or `eval()`.
 - **Updates**: Libraries are pinned in `extension/vendor/`. To update, replace files manually and test.
 
+## Testing
+
+To ensure the hyphenation engine and patterns are loading correctly, you can run the built-in tests:
+
+1.  **Browser-based Loader Test**: Open `test_loader.html` in your browser. It will automatically check if `Hypher` and the German patterns are loaded and verify the hyphenation logic.
+2.  **In-App Test**: Use the **🧪 Test Hyphenation** button in the main `index.html` interface to verify the engine is ready.
+3.  **Regression Tests**: A `test_hyphenator.js` file is available for Node.js environments (if available).
+
 ---
 
 ## What This Repo Contains
 
 - `index.html` – standalone browser UI for rich-text hyphenation
+- `test_loader.html` – browser-based test for library loading and engine initialization
+- `test_hyphenator.js` – Node.js regression test script
 - `pyproject.toml` – Python project metadata (managed with `uv`)
 
 ---
