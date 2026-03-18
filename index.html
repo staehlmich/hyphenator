@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta
+          http-equiv="Content-Security-Policy"
+          content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
+  >
   <title>Text Hyphenator</title>
   <style>
     * {
@@ -46,7 +50,7 @@
       padding: 40px;
     }
 
-    h1 {
+      h1 {
       color: var(--text);
       margin-bottom: 10px;
       font-size: 2rem;
@@ -259,29 +263,8 @@
     }
   </style>
 
-  <!-- Hypher library for German hyphenation -->
-  <script src="https://cdn.jsdelivr.net/npm/hypher@0.2.5/lib/hypher.js"></script>
-  <script>
-    // Create a shim to capture the German hyphenation patterns from a CommonJS module script
-    (function() {
-      const originalModule = window.module;
-      const originalExports = window.exports;
-      window.module = { exports: {} };
-      window.exports = window.module.exports;
-      
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/hyphenation.de@0.2.1/lib/de.js';
-      script.async = false; // Load synchronously relative to other scripts
-      script.onload = function() {
-        window.HyphenationDe = window.module.exports;
-        // Restore originals
-        window.module = originalModule;
-        window.exports = originalExports;
-        console.log("✅ German patterns loaded via shim");
-      };
-      document.head.appendChild(script);
-    })();
-  </script>
+  <script src="./vendor/hypher.js"></script>
+  <script src="./hyphenation_loader.js"></script>
 </head>
 <body>
 <div class="container">
@@ -293,18 +276,18 @@
   <div class="input-section" id="richInputSection">
     <label for="inputRich">Rich Text Input</label>
     <div
-      id="inputRich"
-      class="rich-editor"
-      contenteditable="true"
-      data-placeholder="Paste formatted text from Google Docs here..."
-      spellcheck="false"
+            id="inputRich"
+            class="rich-editor"
+            contenteditable="true"
+            data-placeholder="Paste formatted text from Google Docs here..."
+            spellcheck="false"
     ></div>
   </div>
 
   <div class="button-group">
-    <button class="btn-primary" type="button" onclick="hyphenateText()">✨ Add Hyphens</button>
-    <button class="btn-secondary" type="button" onclick="clearAll()">🗑️ Clear</button>
-    <button class="btn-secondary" type="button" onclick="testHyphenation()">🧪 Test Hyphenation</button>
+    <button id="btnHyphenate" class="btn-primary" type="button">✨ Add Hyphens</button>
+    <button id="btnClear" class="btn-secondary" type="button">🗑️ Clear</button>
+    <button id="btnTest" class="btn-secondary" type="button">🧪 Test Hyphenation</button>
   </div>
 
   <div class="output-section">
@@ -314,7 +297,7 @@
     </div>
 
     <div class="output-actions">
-      <button class="btn-copy" type="button" onclick="copyRichOutput()">🖇️ Copy Rich Output</button>
+      <button id="btnCopy" class="btn-copy" type="button">🖇️ Copy Rich Output</button>
     </div>
   </div>
 
@@ -332,456 +315,6 @@
 </div>
 
 <div id="toast" class="toast"></div>
-
-<script>
-  let hyphenator = null;
-
-  window.addEventListener("DOMContentLoaded", async () => {
-    setupPasteHandling();
-    setupRichEditorLinks();
-    setInitialExample();
-
-    showToast("⏳ Loading hyphenation library...");
-
-    try {
-      // Wait for patterns to load via the shim
-      let retryCount = 0;
-      while (!window.HyphenationDe && retryCount < 50) {
-        await delay(100);
-        retryCount++;
-      }
-
-      // Initialize Hypher with German patterns
-      if (typeof Hypher !== 'undefined' && window.HyphenationDe) {
-        hyphenator = new Hypher(window.HyphenationDe);
-        console.log("✅ Hypher library loaded successfully");
-        showToast("✅ German hyphenation loaded");
-      } else {
-        throw new Error("Hypher or German patterns not loaded correctly. Available: " +
-          Object.keys(window).filter(k => k.toLowerCase().includes('hyp')).join(', '));
-      }
-    } catch (error) {
-      console.error("Failed to load hyphenation engine:", error);
-      showToast("⚠️ Error loading hyphenation library - check console");
-    }
-  });
-
-  function setupPasteHandling() {
-    const richInput = document.getElementById("inputRich");
-
-    richInput.addEventListener("paste", (event) => {
-      const clipboard = event.clipboardData || window.clipboardData;
-      if (!clipboard) {
-        return;
-      }
-
-      const html = clipboard.getData("text/html");
-      const text = clipboard.getData("text/plain");
-
-      if (html) {
-        event.preventDefault();
-        const sanitized = sanitizePastedHtml(html);
-        insertHtmlAtCursor(sanitized);
-        return;
-      }
-
-      if (text) {
-        event.preventDefault();
-        insertHtmlAtCursor(escapeHtml(text).replace(/\n/g, "<br>"));
-      }
-    });
-  }
-
-  function setupRichEditorLinks() {
-    const richInput = document.getElementById("inputRich");
-
-    richInput.addEventListener("click", (event) => {
-      const link = event.target.closest("a");
-      if (!link) {
-        return;
-      }
-
-      event.preventDefault();
-      const href = link.getAttribute("href");
-
-      if (href && isSafeHref(href)) {
-        window.open(href, "_blank", "noopener,noreferrer");
-      }
-    });
-  }
-
-  function setInitialExample() {
-    document.getElementById("inputRich").innerHTML =
-      "<p>Dies ist ein Beispiel mit einem " +
-      "<a href=\"https://www.beispiel.de/sehr/langer/pfad?thema=Arbeitsmarktstrukturreform\" target=\"_blank\" rel=\"noopener noreferrer\">" +
-      "langen Link zur Arbeitsmarktstrukturreform" +
-      "</a> und normalem Fließtext.</p>";
-  }
-
-    async function waitForHyphenator(language) {
-    const maxWaitMs = 15000; // Increased timeout to 15 seconds
-    const start = Date.now();
-
-    while (Date.now() - start < maxWaitMs) {
-      // Check if Hyphenopoly is loaded
-      if (window.Hyphenopoly && window.Hyphenopoly.hyphenators && window.Hyphenopoly.hyphenators[language]) {
-        console.log(`Hyphenator for ${language} found after ${Date.now() - start}ms`);
-        return await window.Hyphenopoly.hyphenators[language];
-      }
-
-      // Log progress every 2 seconds
-      if ((Date.now() - start) % 2000 < 100) {
-        console.log(`Still waiting for hyphenator... (${Math.floor((Date.now() - start) / 1000)}s)`);
-        console.log("Current state:", {
-          hasHyphenopoly: !!window.Hyphenopoly,
-          hasHyphenators: !!window.Hyphenopoly?.hyphenators,
-          availableLanguages: window.Hyphenopoly?.hyphenators ? Object.keys(window.Hyphenopoly.hyphenators) : []
-        });
-      }
-
-      await delay(100);
-    }
-
-    throw new Error(`Hyphenator for language '${language}' not available after ${maxWaitMs}ms`);
-  }
-
-  function delay(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  function insertSoftHyphens(text) {
-    if (!hyphenator) {
-      showToast("⚠️ Hyphenation library not loaded yet");
-      return text;
-    }
-
-    return text.replace(/\p{L}+/gu, (word) => hyphenateWord(word));
-  }
-
-  function hyphenateWord(word) {
-    if (!hyphenator) {
-      console.warn("Hyphenation not available for word:", word);
-      return word;
-    }
-
-    try {
-      // Hypher returns an array of syllables, join with soft hyphens
-      const syllables = hyphenator.hyphenate(word);
-      const hyphenated = syllables.join('\u00AD');
-
-      // Debug: log first few words to verify hyphenation is working
-      if (Math.random() < 0.1) { // Log ~10% of words
-        console.log(`Hyphenated: "${word}" → "${hyphenated}" (${syllables.length} syllables)`);
-      }
-      return hyphenated;
-    } catch (error) {
-      console.warn("Hyphenation failed for word:", word, error);
-      return word;
-    }
-  }
-
-  function hyphenateRichHtml(html) {
-    const template = document.createElement("template");
-    template.innerHTML = html;
-
-    Array.from(template.content.childNodes).forEach((node) => {
-      hyphenateTextNode(node);
-    });
-
-    return template.innerHTML;
-  }
-
-  function hyphenateTextNode(node) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      node.textContent = insertSoftHyphens(node.textContent);
-      return;
-    }
-
-    if (node.nodeType !== Node.ELEMENT_NODE) {
-      return;
-    }
-
-    const tagName = node.tagName.toLowerCase();
-
-    if (["script", "style"].includes(tagName)) {
-      return;
-    }
-
-    Array.from(node.childNodes).forEach((child) => hyphenateTextNode(child));
-  }
-
-  function hyphenateText() {
-    const inputRich = document.getElementById("inputRich");
-    const inputHtml = inputRich.innerHTML;
-    const inputText = inputRich.textContent || "";
-
-    if (!inputText.trim()) {
-      showToast("⚠️ Please enter some text first");
-      return;
-    }
-
-    const hyphenatedHtml = hyphenateRichHtml(inputHtml);
-
-    document.getElementById("outputRich").innerHTML = hyphenatedHtml;
-    document.getElementById("previewBox").innerHTML = hyphenatedHtml;
-
-    showToast("✅ Rich text hyphenated successfully!");
-  }
-
-  function clearAll() {
-    document.getElementById("inputRich").innerHTML = "";
-    document.getElementById("outputRich").innerHTML = "Hyphenated rich output will appear here...";
-    document.getElementById("previewBox").innerHTML = "Preview will appear here...";
-    showToast("🗑️ All cleared");
-  }
-
-  async function copyRichOutput() {
-    const outputRich = document.getElementById("outputRich");
-
-    if (!outputRich.textContent.trim() || outputRich.textContent.includes("Hyphenated rich output will appear here...")) {
-      showToast("⚠️ Nothing to copy");
-      return;
-    }
-
-    const html = outputRich.innerHTML;
-    const text = outputRich.innerText;
-
-    try {
-      if (navigator.clipboard && window.ClipboardItem) {
-        const item = new ClipboardItem({
-          "text/html": new Blob([html], { type: "text/html" }),
-          "text/plain": new Blob([text], { type: "text/plain" })
-        });
-        await navigator.clipboard.write([item]);
-      } else {
-        fallbackCopyHtml(outputRich);
-      }
-
-      showToast("🖇️ Rich output copied");
-    } catch (error) {
-      console.error("Rich copy failed:", error);
-      fallbackCopyHtml(outputRich);
-      showToast("🖇️ Rich output copied");
-    }
-  }
-
-  function fallbackCopyHtml(element) {
-    const selection = window.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(element);
-
-    selection.removeAllRanges();
-    selection.addRange(range);
-    document.execCommand("copy");
-    selection.removeAllRanges();
-  }
-
-  function sanitizePastedHtml(html) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
-
-    const allowedTags = new Set([
-      "a", "b", "strong", "i", "em", "u", "span", "br",
-      "p", "div", "ul", "ol", "li"
-    ]);
-
-    const allowedAttrs = {
-      a: new Set(["href", "target", "rel"]),
-      span: new Set(["style"]),
-      p: new Set(["style"]),
-      div: new Set(["style"]),
-      b: new Set(["style"]),
-      strong: new Set(["style"]),
-      i: new Set(["style"]),
-      em: new Set(["style"]),
-      u: new Set(["style"]),
-      li: new Set(["style"])
-    };
-
-    cleanNode(doc.body, allowedTags, allowedAttrs);
-    normalizeLinks(doc.body);
-
-    return doc.body.innerHTML;
-  }
-
-  function cleanNode(node, allowedTags, allowedAttrs) {
-    Array.from(node.childNodes).forEach((child) => {
-      if (child.nodeType === Node.ELEMENT_NODE) {
-        const tag = child.tagName.toLowerCase();
-
-        if (!allowedTags.has(tag)) {
-          while (child.firstChild) {
-            node.insertBefore(child.firstChild, child);
-          }
-          node.removeChild(child);
-          return;
-        }
-
-        Array.from(child.attributes).forEach((attr) => {
-          const name = attr.name.toLowerCase();
-          const allowedForTag = allowedAttrs[tag] || new Set();
-
-          if (!allowedForTag.has(name)) {
-            child.removeAttribute(attr.name);
-            return;
-          }
-
-          if (name === "style") {
-            child.setAttribute("style", sanitizeInlineStyle(attr.value));
-          }
-
-          if (tag === "a" && name === "href") {
-            const href = child.getAttribute("href") || "";
-            if (!isSafeHref(href)) {
-              child.removeAttribute("href");
-            }
-          }
-        });
-
-        cleanNode(child, allowedTags, allowedAttrs);
-      }
-    });
-  }
-
-  function sanitizeInlineStyle(styleValue) {
-    const allowedProps = new Set([
-      "color",
-      "font-weight",
-      "font-style",
-      "text-decoration",
-      "text-decoration-line",
-      "background-color"
-    ]);
-
-    return styleValue
-      .split(";")
-      .map((rule) => rule.trim())
-      .filter(Boolean)
-      .map((rule) => {
-        const colonIndex = rule.indexOf(":");
-        if (colonIndex === -1) {
-          return "";
-        }
-
-        const prop = rule.slice(0, colonIndex).trim().toLowerCase();
-        const value = rule.slice(colonIndex + 1).trim();
-
-        if (!allowedProps.has(prop)) {
-          return "";
-        }
-
-        return `${prop}: ${value}`;
-      })
-      .filter(Boolean)
-      .join("; ");
-  }
-
-  function isSafeHref(href) {
-    const value = href.trim().toLowerCase();
-    return value.startsWith("http://") ||
-      value.startsWith("https://") ||
-      value.startsWith("mailto:") ||
-      value.startsWith("/");
-  }
-
-  function normalizeLinks(root) {
-    root.querySelectorAll("a").forEach((link) => {
-      const href = link.getAttribute("href");
-      if (!href) {
-        return;
-      }
-
-      if (href.startsWith("http://") || href.startsWith("https://")) {
-        link.setAttribute("target", "_blank");
-        link.setAttribute("rel", "noopener noreferrer");
-      }
-    });
-  }
-
-  function insertHtmlAtCursor(html) {
-    const selection = window.getSelection();
-
-    if (!selection || selection.rangeCount === 0) {
-      document.getElementById("inputRich").focus();
-      document.execCommand("insertHTML", false, html);
-      return;
-    }
-
-    const range = selection.getRangeAt(0);
-    range.deleteContents();
-
-    const temp = document.createElement("div");
-    temp.innerHTML = html;
-
-    const fragment = document.createDocumentFragment();
-    let lastNode = null;
-
-    while (temp.firstChild) {
-      lastNode = fragment.appendChild(temp.firstChild);
-    }
-
-    range.insertNode(fragment);
-
-    if (lastNode) {
-      const newRange = document.createRange();
-      newRange.setStartAfter(lastNode);
-      newRange.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(newRange);
-    }
-  }
-
-  function escapeHtml(text) {
-    return text
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#39;");
-  }
-
-  function showToast(message) {
-    const toast = document.getElementById("toast");
-    toast.textContent = message;
-    toast.classList.add("show");
-
-    clearTimeout(showToast._timeoutId);
-    showToast._timeoutId = setTimeout(() => {
-      toast.classList.remove("show");
-    }, 3000);
-  }
-
-    function testHyphenation() {
-    const testWord = "Arbeitsmarktstrukturreform";
-
-    if (!hyphenator) {
-      showToast("⚠️ Hyphenation library not loaded yet");
-      console.error("Hyphenator not available");
-      return;
-    }
-
-    try {
-      const syllables = hyphenator.hyphenate(testWord);
-      const result = syllables.join('\u00AD');
-
-      console.log(`Test word: "${testWord}"`);
-      console.log(`Syllables: [${syllables.join(', ')}]`);
-      console.log(`Hyphenated: "${result}"`);
-      console.log(`Contains soft hyphens: ${result.includes('\u00AD')}`);
-      console.log(`Soft hyphen count: ${(result.match(/\u00AD/g) || []).length}`);
-
-      // Show in toast with visible representation
-      const visible = result.replace(/\u00AD/g, '•');
-      showToast(`Test: ${testWord} → ${visible} (• = soft hyphen)`);
-
-      if (!result.includes('\u00AD')) {
-        console.error("⚠️ WARNING: No soft hyphens were inserted!");
-      }
-    } catch (error) {
-      console.error("Hyphenation test failed:", error);
-      showToast("❌ Hyphenation test failed");
-    }
-  }
-</script>
+<script src="./app.js"></script>
 </body>
 </html>

@@ -8,8 +8,8 @@ A small project for inserting **soft hyphens** (`\u00AD`) into German text, with
 
 ## Intended Use Case (Editorial Staff)
 
-> This tool was developed for hyphenating German text in editorial workflows, ensuring proper line breaks without disrupting document structure or formatting. 
-> Particulary newsletters and pages, that don't have an automatic hyphenation.
+This tool was developed for hyphenating German text in editorial workflows, ensuring proper line breaks without disrupting document structure or formatting. 
+Particulary newsletters and pages, that don't have an automatic hyphenation.
 
 ---
 
@@ -32,10 +32,6 @@ This project relies on the following libraries/tools:
   npm: [https://www.npmjs.com/package/hyphenation.de](https://www.npmjs.com/package/hyphenation.de)  
   jsDelivr package page: [https://www.jsdelivr.com/package/npm/hyphenation.de](https://www.jsdelivr.com/package/npm/hyphenation.de)
 
-- **Google Apps Script APIs** (for Google Docs integration)  
-  `DocumentApp`, `HtmlService`, `google.script.run`  
-  Docs: [https://developers.google.com/apps-script](https://developers.google.com/apps-script)
-
 ---
 
 ## Development Notes
@@ -43,5 +39,6 @@ This project relies on the following libraries/tools:
 - Python toolchain is configured via **uv** (see `pyproject.toml`).
 - Frontend HTML files currently load hyphenation libraries from CDN.
 - Soft hyphens are inserted into visible text while preserving link targets.
+- Limitations: Named Entities are low frequency words, that might cause unexpected hyphenation behavior. Additionally, hyphenation rules for German are complex and may not cover all edge cases.
 
 ---
