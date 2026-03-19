@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "German Text Hyphenator",
+  "version": "1.0.0",
+  "description": "Add soft hyphens to selected German text while keeping URLs intact.",
+  "homepage_url": "https://github.com/staehlmich/hyphenator",
+  "permissions": [
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["vendor/hypher.js", "vendor/de_extension.js", "content.js"]
+    }
+  ]
+}
