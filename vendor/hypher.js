@@ -191,4 +191,8 @@ Hypher.prototype.hyphenate = function (word) {
     return result;
 };
 
-module.exports = Hypher;
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = Hypher;
+} else {
+    window.Hypher = Hypher;
+}
